@@ -1,6 +1,7 @@
 #include "blink.h"  
 int LED1 = 21; 
-int LED2 = 22;  
+int LED2 = 2;  
+
 void BLINK_init(){
   Serial.begin(115200);
   pinMode(LED1, OUTPUT);
@@ -21,8 +22,10 @@ void BLINK_yellow(){
     delay(300);
 }
 void BLINK_red(){
+  if(inZone){
     digitalWrite(LED2, HIGH);
     delay(50);
     digitalWrite(LED2, LOW);
     delay(50);  
+  }
 }
