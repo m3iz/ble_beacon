@@ -5,7 +5,7 @@
 #include <BLE2902.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-
+#include "blink.h"
 BLEServer* pServer;
 BLECharacteristic* pCharacteristic;
 
@@ -13,17 +13,7 @@ BLECharacteristic* pCharacteristic;
 #define SERVICE_UUID        "0000180f-0000-1000-8000-00805f9b34fb"
 #define CHARACTERISTIC_UUID "00002a19-0000-1000-8000-00805f9b34fb"
 
-BLEScan* pBLEScan;
-
-class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
-    void onResult(BLEAdvertisedDevice advertisedDevice) {
-      Serial.print("BLE МАК адрес: ");
-      Serial.println(advertisedDevice.getAddress().toString().c_str());
-    }
-};
-
-uint8_t newMACAddress[] = {0x10, 0x00, 0x00, 0x00, 0x01, 0x0a};
-
+const int numBeacons = 10;
 String knownMAC[numBeacons] = {
   "10:00:00:00:02:0c",                           
   "10:00:00:00:03:0c",                            
@@ -36,14 +26,28 @@ String knownMAC[numBeacons] = {
   "10:00:00:00:10:0c",                              
 };  
 
+const int minRSSI = -80;
+
+BLEScan* pBLEScan;
+
+class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
+    void onResult(BLEAdvertisedDevice advertisedDevice) {
+      Serial.print("BLE МАК адрес: ");
+      Serial.println(advertisedDevice.getAddress().toString().c_str());
+    }
+};
+
 void scanTask(void *pvParameters) {
   for (;;) {
+    Serial.print("Scanning...\n");
     BLEDevice::init("BLE_Scanner");
     pBLEScan = BLEDevice::getScan();
     pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
     pBLEScan->setActiveScan(true);
-    BLEScanResults foundDevices = pBLEScan->start(1); // Сканирование на 5 секунд
-    int count = foundDevices.getCount();    for (int j = 0; j < count; j++) {
+    BLEScanResults foundDevices = pBLEScan->start(5); // Сканирование на 5 секунд
+    Serial.print("Устройств найдено: ");
+  Serial.println(foundDevices.getCount());
+  Serial.println("Сканирование завешено!");    int count = foundDevices.getCount();    for (int j = 0; j < count; j++) {
     BLEAdvertisedDevice d = foundDevices.getDevice(j);
     String dMAC = d.getAddress().toString().c_str();      for (byte i = 0; i < numBeacons; i++) {
       if (dMAC == knownMAC[i]) {
@@ -53,9 +57,14 @@ void scanTask(void *pvParameters) {
         Serial.println(d.getRSSI());
         if (d.getRSSI() > minRSSI) {
           BLINK_red();
-          numNotFoundMAC[i] = 0;
+          //numNotFoundMAC[i] = 0;
         }          
-    vTaskDelay(1000 / portTICK_PERIOD_MS); // Подождите 1 секунду перед повторным сканированием
+        break;
+      }
+    }
+  }
+  pBLEScan -> clearResults();
+    vTaskDelay(5000 / portTICK_PERIOD_MS); // Подождите 5 секунд перед повторным сканированием
   }
 }
 
@@ -65,7 +74,6 @@ void setup() {
   // Инициализация BLE сервера
   BLEDevice::init("BLE_Server");
   pServer = BLEDevice::createServer();
-  esp_base_mac_addr_set(newMACAddress); //установка статического mac-адреса
   BLEService *pService = pServer->createService(SERVICE_UUID);
   pCharacteristic = pService->createCharacteristic(
       CHARACTERISTIC_UUID,
@@ -86,6 +94,3 @@ void setup() {
 void loop() {
   // Дополнительная логика BLE сервера может быть добавлена здесь
 }
-
-
-
