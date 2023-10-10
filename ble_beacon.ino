@@ -11,6 +11,7 @@ BLEServer* pServer;
 BLECharacteristic* pCharacteristic;
 
 bool inZone = false;
+int slevel = 1;
 //UUID для сервиса и характеристики
 #define SERVICE_UUID        "0000180f-0000-1000-8000-00805f9b34fb"
 #define CHARACTERISTIC_UUID "00002a19-0000-1000-8000-00805f9b34fb"
@@ -35,7 +36,7 @@ const int minRSSI = -80;
 
 BLEScan* pBLEScan;
 
-class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
+class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks { //тут можно делать всю обработку, чтобы не пропустить устройство
     void onResult(BLEAdvertisedDevice advertisedDevice) {
       //Serial.print("BLE МАК адрес: ");
       //Serial.println(advertisedDevice.getAddress().toString().c_str());
@@ -50,11 +51,12 @@ void blinkTask(void *pvParameters) {
 void scanTask(void *pvParameters) {
   for (;;) {
     Serial.print("Scanning...\n");
+    bool deviceFound = false;
     BLEDevice::init("BLE_Scanner");
     pBLEScan = BLEDevice::getScan();
     pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
     pBLEScan->setActiveScan(true);
-    BLEScanResults foundDevices = pBLEScan->start(1); // Сканирование на 1 секунду / нужно поддобрать
+    BLEScanResults foundDevices = pBLEScan->start(1); // Сканирование на 1 секунду / нужно подобрать
     Serial.print("Устройств найдено: ");
     Serial.println(foundDevices.getCount());
     Serial.println("Сканирование завешено!");    
@@ -68,17 +70,24 @@ void scanTask(void *pvParameters) {
         if (dMAC == knownMAC[i]) 
         {
           Serial.print("Найден знаковый MAC: ");
+          deviceFound = true;
           Serial.println(dMAC);
           Serial.print("RSSI: ");
           Serial.println(d.getRSSI());
           if (d.getRSSI() > minRSSI) 
           {
             inZone = true;
+            slevel = d.getRSSI();
+            
+          }
+          else {
+            inZone = false; //тут нужно проверить про старый ли мак идет речь!!!!!//это и ломает прогу
           }          
           break;
         }
     }
   }
+  if(!deviceFound) inZone = false;
   pBLEScan -> clearResults();
   vTaskDelay(0); // Задержка перед сканированием
   }
