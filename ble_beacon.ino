@@ -13,6 +13,8 @@ BLECharacteristic* pCharacteristic;
 #define SERVICE_UUID        "0000180f-0000-1000-8000-00805f9b34fb"
 #define CHARACTERISTIC_UUID "00002a19-0000-1000-8000-00805f9b34fb"
 
+uint8_t newMACAddress[] = {0x10, 0x00, 0x00, 0x00, 0x01, 0x0a};
+
 const int numBeacons = 10;
 String knownMAC[numBeacons] = {
   "10:00:00:00:02:0c",                           
@@ -70,9 +72,9 @@ void scanTask(void *pvParameters) {
 
 void setup() {
   Serial.begin(115200);
-
+  esp_base_mac_addr_set(newMACAddress);
   // Инициализация BLE сервера
-  BLEDevice::init("BLE_Server");
+  BLEDevice::init("BLE_Server1");
   pServer = BLEDevice::createServer();
   BLEService *pService = pServer->createService(SERVICE_UUID);
   pCharacteristic = pService->createCharacteristic(
