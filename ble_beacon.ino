@@ -5,7 +5,7 @@
 #include <BLE2902.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include "blink.h"
+#include "blink.h"``````````````````````````````````````````````````````````````````````````````
 
 BLEServer* pServer;
 BLECharacteristic* pCharacteristic;
@@ -18,6 +18,7 @@ int slevel = 1;
 
 uint8_t newMACAddress[] = {0x10, 0x00, 0x00, 0x00, 0x02, 0x0a};
 
+int counter = 0;
 
 const int numBeacons = 10;
 String knownMAC[numBeacons] = {
@@ -32,7 +33,7 @@ String knownMAC[numBeacons] = {
   "10:00:00:00:10:0c",                              
 };  
 
-const int minRSSI = -80;
+const int minRSSI = -100;
 
 BLEScan* pBLEScan;
 
@@ -56,7 +57,7 @@ void scanTask(void *pvParameters) {
     pBLEScan = BLEDevice::getScan();
     pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
     pBLEScan->setActiveScan(true);
-    BLEScanResults foundDevices = pBLEScan->start(1); // Сканирование на 1 секунду / нужно подобрать
+    BLEScanResults foundDevices = pBLEScan->start(1); 
     Serial.print("Устройств найдено: ");
     Serial.println(foundDevices.getCount());
     Serial.println("Сканирование завешено!");    
@@ -74,29 +75,34 @@ void scanTask(void *pvParameters) {
           Serial.println(dMAC);
           Serial.print("RSSI: ");
           Serial.println(d.getRSSI());
-          if (d.getRSSI() > minRSSI) 
+          if ((d.getRSSI() > minRSSI) && (counter>=3))
           {
             inZone = true;
             slevel = d.getRSSI();
             
           }
           else {
-            inZone = false; //тут нужно проверить про старый ли мак идет речь!!!!!//это и ломает прогу
+            inZone = false; //тут нужно проверить про старый ли мак идет речь, возможно//это ломает прогу, если задано полное условие в blink.cpp
           }          
           break;
         }
     }
   }
-  if(!deviceFound) inZone = false;
+  if(!deviceFound) {
+    inZone = false;
+    counter = 0;
+  }
+  else {
+    counter++;
+  }
   pBLEScan -> clearResults();
-  vTaskDelay(0); // Задержка перед сканированием
+  //vTaskDelay(0); // Задержка перед сканированием
   }
 }
 
 void setup() {
   Serial.begin(115200);
   esp_base_mac_addr_set(newMACAddress);
-  //LED ini
   BLINK_init();
   // Инициализация BLE сервера
   BLEDevice::init("BLE_Server2");

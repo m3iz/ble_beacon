@@ -15,9 +15,9 @@ void BLINK_red(){
     digitalWrite(LED2, HIGH);
   }
   
-    delay(abs(slevel)*2);
+    delay(abs(slevel)*3); //x^2 как вариант
     digitalWrite(LED2, LOW);
-    delay(abs(slevel)*2);
+    delay(abs(slevel)*3);
   
 }
 
