@@ -7,8 +7,8 @@
 #include <freertos/task.h>
 #include "blink.h"
 
-
-#define MODE 1
+//tasks сделать уникальный мак адресс fix + serial
+#define MODE 2
 
 #define SNUM 15
 
@@ -56,7 +56,7 @@ String knownMAC[numBeacons] = {
 int counter = 0;
 int decounter = 0;
 
-const int minRSSI = -85;
+const int minRSSI = -90; //-85
 
 BLEScan* pBLEScan;
 
@@ -73,7 +73,7 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 
     // Проверяем, сравниваем с "10:00:00"
     if (firstThreeOctets.equals("10:00:00")) {
-      Serial.println("Device with MAC address starting with 10:00:00 found! asasasasa");
+      Serial.println("Device with MAC address starting with 10:00:00 found!");
       pBLEScan-> stop();
     }
     }
@@ -151,10 +151,24 @@ void scanTask(void *pvParameters) {
 
 void setup() {
   Serial.begin(115200);
+  
   esp_base_mac_addr_set(newMACAddress);
   BLINK_init();
   // Инициализация BLE сервера
-  BLEDevice::init("BLE_Server3");
+  BLEDevice::init("Ble_device");
+  uint64_t chipId = ESP.getEfuseMac();
+
+  // Преобразовать серийный номер в строку
+  String chipIdStr = String(chipId, HEX);
+
+  // Взять последние 6 символов (3 байта)
+  String last6Chars = chipIdStr.substring(chipIdStr.length() - 6);
+ // Формировать MAC-адрес с разделением двоеточием
+  String macAddress = "10:00:00:" + last6Chars.substring(0, 2) + ":" + last6Chars.substring(2, 4) + ":" + last6Chars.substring(4, 6);
+ 
+
+  Serial.print("Generated MAC address: ");
+  Serial.println(macAddress);
  // BLEDevice::setPower(ESP_PWR_LVL_P7); //ESP_PWR_LVL_P7
   pServer = BLEDevice::createServer();
   BLEService *pService = pServer->createService(SERVICE_UUID);
