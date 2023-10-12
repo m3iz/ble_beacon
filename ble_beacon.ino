@@ -7,6 +7,9 @@
 #include <freertos/task.h>
 #include "blink.h"
 
+
+#define MODE 1
+
 #define SNUM 15
 
 BLEServer* pServer;
@@ -19,12 +22,24 @@ bool deviceFound = false;
 #define SERVICE_UUID        "0000180f-0000-1000-8000-00805f9b34fb"
 #define CHARACTERISTIC_UUID "00002a19-0000-1000-8000-00805f9b34fb"
 
-uint8_t newMACAddress[] = {0x10, 0x00, 0x00, 0x00, 0x02, 0x0a};
-
-int counter = 0;
-int decounter = 0;
-
 const int numBeacons = 10;
+
+#ifdef MODE
+#if MODE == 1
+uint8_t newMACAddress[] = {0x10, 0x00, 0x00, 0x00, 0x01, 0x0a};
+String knownMAC[numBeacons] = {
+  "10:00:00:00:02:0c",                           
+  "10:00:00:00:03:0c",                            
+  "10:00:00:00:04:0c",
+  "10:00:00:00:05:0c",                           
+  "10:00:00:00:06:0c",                            
+  "10:00:00:00:07:0c",  
+  "10:00:00:00:08:0c",                           
+  "10:00:00:00:09:0c",                            
+  "10:00:00:00:10:0c",                              
+};  
+#elif MODE == 2
+uint8_t newMACAddress[] = {0x10, 0x00, 0x00, 0x00, 0x02, 0x0a};
 String knownMAC[numBeacons] = {
   "10:00:00:00:01:0c",                           
   "10:00:00:00:03:0c",                            
@@ -36,14 +51,18 @@ String knownMAC[numBeacons] = {
   "10:00:00:00:09:0c",                            
   "10:00:00:00:10:0c",                              
 };  
+#endif
+#endif
+int counter = 0;
+int decounter = 0;
 
-const int minRSSI = -60;
+const int minRSSI = -85;
 
 BLEScan* pBLEScan;
 
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks { 
     void onResult(BLEAdvertisedDevice advertisedDevice) {
-    if(!inZone){  
+   // if(!inZone){  
     BLEAddress deviceAddress = advertisedDevice.getAddress();
 
     // Извлекаем строку MAC-адреса
@@ -54,15 +73,15 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 
     // Проверяем, сравниваем с "10:00:00"
     if (firstThreeOctets.equals("10:00:00")) {
-      Serial.println("Device with MAC address starting with 10:00:00 found!");
+      Serial.println("Device with MAC address starting with 10:00:00 found! asasasasa");
       pBLEScan-> stop();
     }
     }
-      
+
       //Serial.print("BLE МАК адрес: ");
       //Serial.println(advertisedDevice.getAddress().toString().c_str());
      
-    }
+   // }
 };
 
 void blinkTask(void *pvParameters) {
@@ -98,7 +117,7 @@ void scanTask(void *pvParameters) {
           {
             inZone = true;
             decounter = 0;
-            slevel = d.getRSSI();
+            slevel = abs(d.getRSSI());
             
           }
           else if(d.getRSSI() < minRSSI){
@@ -136,6 +155,7 @@ void setup() {
   BLINK_init();
   // Инициализация BLE сервера
   BLEDevice::init("BLE_Server3");
+ // BLEDevice::setPower(ESP_PWR_LVL_P7); //ESP_PWR_LVL_P7
   pServer = BLEDevice::createServer();
   BLEService *pService = pServer->createService(SERVICE_UUID);
   pCharacteristic = pService->createCharacteristic(
