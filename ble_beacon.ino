@@ -7,24 +7,25 @@
 #include <freertos/task.h>
 #include "blink.h"
 
-#define SNUM 4
+#define SNUM 15
 
 BLEServer* pServer;
 BLECharacteristic* pCharacteristic;
 
 bool inZone = false;
 int slevel = 1;
+bool deviceFound = false;
 //UUID для сервиса и характеристики
 #define SERVICE_UUID        "0000180f-0000-1000-8000-00805f9b34fb"
 #define CHARACTERISTIC_UUID "00002a19-0000-1000-8000-00805f9b34fb"
 
-uint8_t newMACAddress[] = {0x10, 0x00, 0x00, 0x00, 0x01, 0x0a};
+uint8_t newMACAddress[] = {0x10, 0x00, 0x00, 0x00, 0x02, 0x0a};
 
 int counter = 0;
 
 const int numBeacons = 10;
 String knownMAC[numBeacons] = {
-  "10:00:00:00:02:0c",                           
+  "10:00:00:00:01:0c",                           
   "10:00:00:00:03:0c",                            
   "10:00:00:00:04:0c",
   "10:00:00:00:05:0c",                           
@@ -39,10 +40,27 @@ const int minRSSI = -80;
 
 BLEScan* pBLEScan;
 
-class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks { //тут можно делать всю обработку, чтобы не пропустить устройство
+class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks { 
     void onResult(BLEAdvertisedDevice advertisedDevice) {
+    if(!inZone){  
+    BLEAddress deviceAddress = advertisedDevice.getAddress();
+
+    // Извлекаем строку MAC-адреса
+    String macAddress = deviceAddress.toString().c_str();
+
+    // Извлекаем только первые 8 символов (первые 3 октета)
+    String firstThreeOctets = macAddress.substring(0, 8);
+
+    // Проверяем, сравниваем с "10:00:00"
+    if (firstThreeOctets.equals("10:00:00")) {
+      Serial.println("Device with MAC address starting with 10:00:00 found!");
+      pBLEScan-> stop();
+    }
+    }
+      
       //Serial.print("BLE МАК адрес: ");
       //Serial.println(advertisedDevice.getAddress().toString().c_str());
+     
     }
 };
 
@@ -54,15 +72,12 @@ void blinkTask(void *pvParameters) {
 void scanTask(void *pvParameters) {
   for (;;) {
     Serial.print("Scanning...\n");
-    bool deviceFound = false;
+    deviceFound = false;
     BLEDevice::init("BLE_Scanner");
     pBLEScan = BLEDevice::getScan();
     pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
     pBLEScan->setActiveScan(true);
-    BLEScanResults foundDevices = pBLEScan->start(1); 
-    Serial.print("Устройств найдено: ");
-    Serial.println(foundDevices.getCount());
-    Serial.println("Сканирование завешено!");    
+    BLEScanResults foundDevices = pBLEScan->start(1);  
     int count = foundDevices.getCount();    
     for (int j = 0; j < count; j++) 
     {
@@ -72,12 +87,13 @@ void scanTask(void *pvParameters) {
       {
         if (dMAC == knownMAC[i]) 
         {
+          
           Serial.print("Найден знаковый MAC: ");
           deviceFound = true;
           Serial.println(dMAC);
           Serial.print("RSSI: ");
           Serial.println(d.getRSSI());
-          if ((d.getRSSI() > minRSSI) && (counter>=SNUM))
+          if ((d.getRSSI() > minRSSI) && (counter >= SNUM))
           {
             inZone = true;
             slevel = d.getRSSI();
@@ -98,6 +114,7 @@ void scanTask(void *pvParameters) {
     counter++;
   }
   pBLEScan -> clearResults();
+  
   //vTaskDelay(0); // Задержка перед сканированием
   }
 }

@@ -2,7 +2,7 @@
 #include <math.h>
 
 int LED1 = 21; 
-int LED2 = 22; //2 
+int LED2 = 2; //2 
 
 void BLINK_init(){
   Serial.begin(115200);
