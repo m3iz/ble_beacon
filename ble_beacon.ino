@@ -5,7 +5,9 @@
 #include <BLE2902.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include "blink.h"``````````````````````````````````````````````````````````````````````````````
+#include "blink.h"
+
+#define SNUM 4
 
 BLEServer* pServer;
 BLECharacteristic* pCharacteristic;
@@ -16,13 +18,13 @@ int slevel = 1;
 #define SERVICE_UUID        "0000180f-0000-1000-8000-00805f9b34fb"
 #define CHARACTERISTIC_UUID "00002a19-0000-1000-8000-00805f9b34fb"
 
-uint8_t newMACAddress[] = {0x10, 0x00, 0x00, 0x00, 0x02, 0x0a};
+uint8_t newMACAddress[] = {0x10, 0x00, 0x00, 0x00, 0x01, 0x0a};
 
 int counter = 0;
 
 const int numBeacons = 10;
 String knownMAC[numBeacons] = {
-  "10:00:00:00:01:0c",                           
+  "10:00:00:00:02:0c",                           
   "10:00:00:00:03:0c",                            
   "10:00:00:00:04:0c",
   "10:00:00:00:05:0c",                           
@@ -33,7 +35,7 @@ String knownMAC[numBeacons] = {
   "10:00:00:00:10:0c",                              
 };  
 
-const int minRSSI = -100;
+const int minRSSI = -80;
 
 BLEScan* pBLEScan;
 
@@ -75,7 +77,7 @@ void scanTask(void *pvParameters) {
           Serial.println(dMAC);
           Serial.print("RSSI: ");
           Serial.println(d.getRSSI());
-          if ((d.getRSSI() > minRSSI) && (counter>=3))
+          if ((d.getRSSI() > minRSSI) && (counter>=SNUM))
           {
             inZone = true;
             slevel = d.getRSSI();
@@ -105,7 +107,7 @@ void setup() {
   esp_base_mac_addr_set(newMACAddress);
   BLINK_init();
   // Инициализация BLE сервера
-  BLEDevice::init("BLE_Server2");
+  BLEDevice::init("BLE_Server3");
   pServer = BLEDevice::createServer();
   BLEService *pService = pServer->createService(SERVICE_UUID);
   pCharacteristic = pService->createCharacteristic(
