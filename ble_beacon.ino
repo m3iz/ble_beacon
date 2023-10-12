@@ -22,6 +22,7 @@ bool deviceFound = false;
 uint8_t newMACAddress[] = {0x10, 0x00, 0x00, 0x00, 0x02, 0x0a};
 
 int counter = 0;
+int decounter = 0;
 
 const int numBeacons = 10;
 String knownMAC[numBeacons] = {
@@ -36,7 +37,7 @@ String knownMAC[numBeacons] = {
   "10:00:00:00:10:0c",                              
 };  
 
-const int minRSSI = -80;
+const int minRSSI = -60;
 
 BLEScan* pBLEScan;
 
@@ -96,19 +97,29 @@ void scanTask(void *pvParameters) {
           if ((d.getRSSI() > minRSSI) && (counter >= SNUM))
           {
             inZone = true;
+            decounter = 0;
             slevel = d.getRSSI();
             
           }
-          else {
-            inZone = false; //тут нужно проверить про старый ли мак идет речь, возможно//это ломает прогу, если задано полное условие в blink.cpp
-          }          
+          else if(d.getRSSI() < minRSSI){
+            decounter++;
+            if(decounter>=SNUM-10){
+               inZone = false;
+               counter = 0;
+            }
+          }
+                
           break;
         }
     }
   }
   if(!deviceFound) {
-    inZone = false;
     counter = 0;
+    if(inZone)decounter++;
+    if(decounter>=SNUM-10){
+      inZone = false;
+      
+    }
   }
   else {
     counter++;
