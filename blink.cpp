@@ -3,7 +3,7 @@
 
 int LED1 = 22;
 int LED2 = 21;  //2
-
+bool led=false;
 int dvalue = 0;
 void BLINK_init() {
   Serial.begin(115200);
@@ -22,33 +22,19 @@ void helloBlink(){
 
 void BLINK_red() {
   if (inZone) {
-    digitalWrite(LED2, HIGH);
+    if(!led){
+      digitalWrite(LED2, HIGH);
+    }else{
+      digitalWrite(LED1, HIGH);
+    }
     Serial.print("Middle value= ");
     Serial.print(mval);
   }
 
-  if (mval >= 0 && mval <= 40) {
-    dvalue = 50;
-  } else if (mval > 40 && mval <= 50) {
-    dvalue = 100;
-  }
-  else if (mval > 50 && mval <= 55) {
-    dvalue = 150;
-  } else if (mval > 55 && mval <= 60) {
-    digitalWrite(LED1, HIGH);
-    dvalue = 200;
-  } else if (mval > 60 && mval <= 70) {
-    digitalWrite(LED1, LOW);
-    dvalue = 300;
-  } else if (mval > 70 && mval <= 80) {
-    digitalWrite(LED1, LOW);
-    dvalue = 600;
-  } else {
-    digitalWrite(LED1, LOW);
-    dvalue = 900;
-  }
-
-  delay(dvalue);  //x^2 как вариант
+  if(mval<60)led=true;
+  else led = false;
+  delay(150);  //x^2 как вариант
   digitalWrite(LED2, LOW);
-  delay(dvalue);
+  digitalWrite(LED1, LOW);
+  delay(150);
 }
