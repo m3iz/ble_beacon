@@ -103,12 +103,10 @@ void scanTask(void *pvParameters) {
     {
       BLEAdvertisedDevice d = foundDevices.getDevice(j);
       String dMAC = d.getAddress().toString().c_str();      
-      for (byte i = 0; i < numBeacons; i++) 
-      {
-        if (dMAC == knownMAC[i]) 
-        {
-          
-          Serial.print("Найден знаковый MAC: ");
+      String firstThreeOctets = dMAC.substring(0, 8);
+      // Проверяем, сравниваем с "10:00:00"
+      if (firstThreeOctets.equals("10:00:00")) {          
+          Serial.print("Найден MAC: ");
           deviceFound = true;
           Serial.println(dMAC);
           Serial.print("RSSI: ");
@@ -131,7 +129,7 @@ void scanTask(void *pvParameters) {
           break;
         }
     }
-  }
+  
   if(!deviceFound) {
     counter = 0;
     if(inZone)decounter++;
@@ -152,23 +150,23 @@ void scanTask(void *pvParameters) {
 void setup() {
   Serial.begin(115200);
   
-  esp_base_mac_addr_set(newMACAddress);
+  
   BLINK_init();
   // Инициализация BLE сервера
-  BLEDevice::init("Ble_device");
+  
   uint64_t chipId = ESP.getEfuseMac();
 
-  // Преобразовать серийный номер в строку
-  String chipIdStr = String(chipId, HEX);
+  // Преобразовать последние 3 байта серийного номера в массив uint8_t
+  uint8_t last3Bytes[3];
+  last3Bytes[0] = (chipId >> 16) & 0xFF;
+  last3Bytes[1] = (chipId >> 8) & 0xFF;
+  last3Bytes[2] = chipId & 0xFF;
 
-  // Взять последние 6 символов (3 байта)
-  String last6Chars = chipIdStr.substring(chipIdStr.length() - 6);
- // Формировать MAC-адрес с разделением двоеточием
-  String macAddress = "10:00:00:" + last6Chars.substring(0, 2) + ":" + last6Chars.substring(2, 4) + ":" + last6Chars.substring(4, 6);
- 
-
-  Serial.print("Generated MAC address: ");
-  Serial.println(macAddress);
+  // Создать MAC-адрес с первыми тремя октетами "10:00:00" и последними тремя октетами из last3Bytes
+  uint8_t macAddress[] = {0x10, 0x00, 0x00, last3Bytes[0], last3Bytes[1], last3Bytes[2]};
+  //uint8_t newMACAddress[] = {0x10, 0x00, 0x00, 0x00, 0x01, 0x0a};
+  esp_base_mac_addr_set(macAddress);
+  BLEDevice::init("Ble_device");
  // BLEDevice::setPower(ESP_PWR_LVL_P7); //ESP_PWR_LVL_P7
   pServer = BLEDevice::createServer();
   BLEService *pService = pServer->createService(SERVICE_UUID);
