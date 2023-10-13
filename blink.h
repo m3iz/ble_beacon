@@ -4,7 +4,11 @@
 
 extern bool inZone;
 extern int slevel;
-void BLINK_init(void);  
+
+extern int mval;
+
+void BLINK_init(void); 
+void helloBlink(void);
 void BLINK_green(void);  
 void BLINK_yellow(void);  
 void BLINK_red(void);  

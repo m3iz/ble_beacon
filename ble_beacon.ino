@@ -15,6 +15,10 @@
 BLEServer* pServer;
 BLECharacteristic* pCharacteristic;
 
+int sval[SNUM];
+int mval=0;
+int it=0;
+
 bool inZone = false;
 int slevel = 1;
 bool deviceFound = false;
@@ -24,39 +28,10 @@ bool deviceFound = false;
 
 const int numBeacons = 10;
 
-#ifdef MODE
-#if MODE == 1
-uint8_t newMACAddress[] = {0x10, 0x00, 0x00, 0x00, 0x01, 0x0a};
-String knownMAC[numBeacons] = {
-  "10:00:00:00:02:0c",                           
-  "10:00:00:00:03:0c",                            
-  "10:00:00:00:04:0c",
-  "10:00:00:00:05:0c",                           
-  "10:00:00:00:06:0c",                            
-  "10:00:00:00:07:0c",  
-  "10:00:00:00:08:0c",                           
-  "10:00:00:00:09:0c",                            
-  "10:00:00:00:10:0c",                              
-};  
-#elif MODE == 2
-uint8_t newMACAddress[] = {0x10, 0x00, 0x00, 0x00, 0x02, 0x0a};
-String knownMAC[numBeacons] = {
-  "10:00:00:00:01:0c",                           
-  "10:00:00:00:03:0c",                            
-  "10:00:00:00:04:0c",
-  "10:00:00:00:05:0c",                           
-  "10:00:00:00:06:0c",                            
-  "10:00:00:00:07:0c",  
-  "10:00:00:00:08:0c",                           
-  "10:00:00:00:09:0c",                            
-  "10:00:00:00:10:0c",                              
-};  
-#endif
-#endif
 int counter = 0;
 int decounter = 0;
 
-const int minRSSI = -90; //-85
+const int minRSSI = -85; //-85
 
 BLEScan* pBLEScan;
 
@@ -111,6 +86,17 @@ void scanTask(void *pvParameters) {
           Serial.println(dMAC);
           Serial.print("RSSI: ");
           Serial.println(d.getRSSI());
+          sval[it]=abs(d.getRSSI());
+          it++;
+          if(it==SNUM)it=0;
+          int temp=0;
+          for(int i=0;i<SNUM;i++){
+            temp+=sval[i];
+            Serial.print("i: "); Serial.print(i); Serial.print(" ");
+            Serial.println(sval[i]);
+          }
+          mval=temp/SNUM;
+          
           if ((d.getRSSI() > minRSSI) && (counter >= SNUM))
           {
             inZone = true;
@@ -133,7 +119,7 @@ void scanTask(void *pvParameters) {
   if(!deviceFound) {
     counter = 0;
     if(inZone)decounter++;
-    if(decounter>=SNUM-10){
+    if(decounter>=SNUM){
       inZone = false;
       
     }
@@ -152,6 +138,7 @@ void setup() {
   
   
   BLINK_init();
+  helloBlink();
   // Инициализация BLE сервера
   
   uint64_t chipId = ESP.getEfuseMac();
