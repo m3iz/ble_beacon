@@ -8,7 +8,10 @@
 #include <map>
 #include "blink.h"
 
+
+//bugs: когда выключается соовсем устройство rssi остается в списке маленьким.
 std::map<String, std::vector<int>> rssiData;
+std::map<String, int> lastData;
 
 #define MODE 2
 
@@ -99,7 +102,6 @@ void scanTask(void *pvParameters) {
           // Если записи не существует, создаем новую
           rssiData[dMAC] = std::vector<int>();
           }
-
           // Добавляем текущее значение RSSI в массив для данного MAC-адреса
           rssiData[dMAC].push_back(abs(d.getRSSI()));
 
@@ -118,10 +120,11 @@ void scanTask(void *pvParameters) {
             else decounter++;
           }
           int averageRssi = sum / rssiData[dMAC].size();
+          lastData[dMAC] = averageRssi;
+
           Serial.print("Среднее значение rssi:");
           Serial.println(averageRssi);
-          if(tval>averageRssi)
-            tval=averageRssi;          
+                    
           if (counter>=SNUM)
             inZone = true;      
           else if(decounter>=SNUM)
@@ -129,7 +132,13 @@ void scanTask(void *pvParameters) {
           break;
         }
     }
+    for (const auto& pair : lastData) {
+        if (pair.second < tval) {
+            tval = pair.second;
+        }
+    }
     mval=tval;
+
   if(!deviceFound) {
     if(inZone)dcounter++;
     if(dcounter>=SNUM-10){
