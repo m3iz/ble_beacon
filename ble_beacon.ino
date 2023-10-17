@@ -17,21 +17,20 @@ std::map<String, std::vector<int>> rssiData;
 BLEServer* pServer;
 BLECharacteristic* pCharacteristic;
 
-int sval[SNUM];
 int mval=0;
-int it=0;
 
 bool inZone = false;
-int slevel = 1;
 bool deviceFound = false;
+
+int counter = 0;
+int decounter = 0;
+int dcounter = 0;
+
 //UUID для сервиса и характеристики
 #define SERVICE_UUID        "0000180f-0000-1000-8000-00805f9b34fb"
 #define CHARACTERISTIC_UUID "00002a19-0000-1000-8000-00805f9b34fb"
 
 const int numBeacons = 10;
-
-int counter = 0;
-int decounter = 0;
 
 const int minRSSI = -82; //-85
 
@@ -81,7 +80,8 @@ void scanTask(void *pvParameters) {
     pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
     pBLEScan->setActiveScan(true);
     BLEScanResults foundDevices = pBLEScan->start(1);  
-    int count = foundDevices.getCount();    
+    int count = foundDevices.getCount();  
+    int tval=100;  
     for (int j = 0; j < count; j++) 
     {
       BLEAdvertisedDevice d = foundDevices.getDevice(j);
@@ -110,42 +110,34 @@ void scanTask(void *pvParameters) {
 
           // Вычисление среднего значения RSSI
           int sum = 0;
+          counter = 0;
+          decounter = 0;
           for (int value : rssiData[dMAC]) {
             sum += value;
+            if(value>=minRSSI)counter++;
+            else decounter++;
           }
           int averageRssi = sum / rssiData[dMAC].size();
           Serial.print("Среднее значение rssi:");
           Serial.println(averageRssi);
-          if(mval>averageRssi)
-            mval=averageRssi;          
-          if ((d.getRSSI() >= minRSSI) && (counter >= SNUM))
-          {
-            inZone = true;
-            decounter = 0;
-            
-          }
-          else if(d.getRSSI() < minRSSI){
-            decounter++;
-            if(decounter>=SNUM-10){
-               inZone = false;
-               counter = 0;
-            }
-          }
-                
+          if(tval>averageRssi)
+            tval=averageRssi;          
+          if (counter>=SNUM)
+            inZone = true;      
+          else if(decounter>=SNUM)
+               inZone = false;   
           break;
         }
     }
-  
+    mval=tval;
   if(!deviceFound) {
-    counter = 0;
-    if(inZone)decounter++;
-    if(decounter>=SNUM){
+    if(inZone)dcounter++;
+    if(dcounter>=SNUM-10){
       inZone = false;
+      dcounter = 0;
+      mval = 100;
       rssiData.clear();
     }
-  }
-  else {
-    counter++;
   }
   pBLEScan -> clearResults();
   
