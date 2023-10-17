@@ -5,9 +5,11 @@
 #include <BLE2902.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <map>
 #include "blink.h"
 
-//tasks сделать уникальный мак адресс fix + serial
+std::map<String, std::vector<int>> rssiData;
+
 #define MODE 2
 
 #define SNUM 15
@@ -31,7 +33,7 @@ const int numBeacons = 10;
 int counter = 0;
 int decounter = 0;
 
-const int minRSSI = -85; //-85
+const int minRSSI = -82; //-85
 
 BLEScan* pBLEScan;
 
@@ -48,7 +50,6 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 
     // Проверяем, сравниваем с "10:00:00"
     if (firstThreeOctets.equals("10:00:00")) {
-      Serial.println("Device with MAC address starting with 10:00:00 found!");
       pBLEScan-> stop();
     }
     }
@@ -59,6 +60,14 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
    // }
 };
 
+int midval(int *arr, int len){
+  int result = 0;
+  for(int i=0;i<len;i++){
+    result+=arr[i];
+  }
+  return result/len;
+}
+
 void blinkTask(void *pvParameters) {
   while(1){
     BLINK_red();
@@ -66,7 +75,6 @@ void blinkTask(void *pvParameters) {
 }
 void scanTask(void *pvParameters) {
   for (;;) {
-    Serial.print("Scanning...\n");
     deviceFound = false;
     BLEDevice::init("BLE_Scanner");
     pBLEScan = BLEDevice::getScan();
@@ -84,24 +92,36 @@ void scanTask(void *pvParameters) {
           Serial.print("Найден MAC: ");
           deviceFound = true;
           Serial.println(dMAC);
-          Serial.print("RSSI: ");
+          Serial.print("RSSI: "); 
           Serial.println(d.getRSSI());
-          sval[it]=abs(d.getRSSI());
-          it++;
-          if(it==SNUM)it=0;
-          int temp=0;
-          for(int i=0;i<SNUM;i++){
-            temp+=sval[i];
-            Serial.print("i: "); Serial.print(i); Serial.print(" ");
-            Serial.println(sval[i]);
+
+          if (rssiData.find(dMAC) == rssiData.end()) {
+          // Если записи не существует, создаем новую
+          rssiData[dMAC] = std::vector<int>();
           }
-          mval=temp/SNUM;
-          
-          if ((d.getRSSI() > minRSSI) && (counter >= SNUM))
+
+          // Добавляем текущее значение RSSI в массив для данного MAC-адреса
+          rssiData[dMAC].push_back(abs(d.getRSSI()));
+
+          // Ограничиваем размер массива до 15
+          if (rssiData[dMAC].size() > SNUM) {
+            rssiData[dMAC].erase(rssiData[dMAC].begin());
+          }
+
+          // Вычисление среднего значения RSSI
+          int sum = 0;
+          for (int value : rssiData[dMAC]) {
+            sum += value;
+          }
+          int averageRssi = sum / rssiData[dMAC].size();
+          Serial.print("Среднее значение rssi:");
+          Serial.println(averageRssi);
+          if(mval>averageRssi)
+            mval=averageRssi;          
+          if ((d.getRSSI() >= minRSSI) && (counter >= SNUM))
           {
             inZone = true;
             decounter = 0;
-            slevel = abs(d.getRSSI());
             
           }
           else if(d.getRSSI() < minRSSI){
@@ -121,7 +141,7 @@ void scanTask(void *pvParameters) {
     if(inZone)decounter++;
     if(decounter>=SNUM){
       inZone = false;
-      
+      rssiData.clear();
     }
   }
   else {
