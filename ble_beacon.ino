@@ -9,7 +9,7 @@
 #include "blink.h"
 
 
-//bugs: когда выключается соовсем устройство rssi остается в списке маленьким.
+//bugs: когда выключается соовсем устройство rssi остается в списке маленьким. счетчик обнуления всей мапы как вариант. 
 std::map<String, std::vector<int>> rssiData;
 std::map<String, int> lastData;
 
@@ -21,7 +21,7 @@ BLEServer* pServer;
 BLECharacteristic* pCharacteristic;
 
 int mval=0;
-
+int rcounter = 0;
 bool inZone = false;
 bool deviceFound = false;
 
@@ -35,7 +35,7 @@ int dcounter = 0;
 
 const int numBeacons = 10;
 
-const int minRSSI = -82; //-85
+const int minRSSI = -75; //-85
 
 BLEScan* pBLEScan;
 
@@ -137,6 +137,10 @@ void scanTask(void *pvParameters) {
             tval = pair.second;
         }
     }
+    if(tval == mval){
+      rcounter++;
+    }else rcounter = 0;
+    if(rcounter>35)lastData.clear();
     mval=tval;
 
   if(!deviceFound) {
@@ -146,6 +150,7 @@ void scanTask(void *pvParameters) {
       dcounter = 0;
       mval = 100;
       rssiData.clear();
+      lastData.clear();
     }
   }
   pBLEScan -> clearResults();
@@ -174,6 +179,7 @@ void setup() {
   uint8_t macAddress[] = {0x10, 0x00, 0x00, last3Bytes[0], last3Bytes[1], last3Bytes[2]};
   //uint8_t newMACAddress[] = {0x10, 0x00, 0x00, 0x00, 0x01, 0x0a};
   esp_base_mac_addr_set(macAddress);
+ 
   BLEDevice::init("Ble_device");
  // BLEDevice::setPower(ESP_PWR_LVL_P7); //ESP_PWR_LVL_P7
   pServer = BLEDevice::createServer();

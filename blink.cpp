@@ -28,8 +28,7 @@ void BLINK_red() {
       digitalWrite(LED1, HIGH);
     }
   }
-  Serial.print("mval: ");
-  Serial.println(mval);
+  
   if(mval<60)led=true;
   else led = false;
   delay(150);  //x^2 как вариант
