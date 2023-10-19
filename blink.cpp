@@ -2,7 +2,7 @@
 #include <math.h>
 
 int LED1 = 22;
-int LED2 = 21;  //2
+int LED2 = 21;  //21
 bool led=false;
 int dvalue = 0;
 void BLINK_init() {
@@ -28,8 +28,8 @@ void BLINK_red() {
       digitalWrite(LED1, HIGH);
     }
   }
-  
-  if(mval<60)led=true;
+
+  if(mval<65)led=true;
   else led = false;
   delay(150);  //x^2 как вариант
   digitalWrite(LED2, LOW);
