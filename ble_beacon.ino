@@ -17,7 +17,7 @@ std::map<String, int> lastData;
 
 #define MODE 2
 
-#define SNUM 15
+#define SNUM 10
 
 BLEServer* pServer;
 BLECharacteristic* pCharacteristic;
@@ -37,7 +37,7 @@ int dcounter = 0;
 
 const int numBeacons = 10;
 
-const int minRSSI = 80; //-85
+const int minRSSI = 75; //-85
 
 BLEScan* pBLEScan;
 
@@ -57,11 +57,6 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
       pBLEScan-> stop();
     }
     }
-
-      //Serial.print("BLE МАК адрес: ");
-      //Serial.println(advertisedDevice.getAddress().toString().c_str());
-     
-   // }
 };
 
 int midval(int *arr, int len){
@@ -79,15 +74,6 @@ void blinkTask(void *pvParameters) {
 }
 void scanTask(void *pvParameters) {
   for (;;) {
-    //Serial.print("Chip id: ");
-    //Serial.println(chipId);
-    //Serial.print("last3Bytes[0]: ");
-    //Serial.println(last3Bytes[0]);
-    //Serial.print("last3Bytes[1]: ");
-    //Serial.println(last3Bytes[1]);
-    //Serial.print("last3Bytes[2]: ");
-    //Serial.println(last3Bytes[2]);
-   
     deviceFound = false;
     BLEDevice::init("BLE_Scanner");
     pBLEScan = BLEDevice::getScan();
@@ -138,13 +124,11 @@ void scanTask(void *pvParameters) {
           Serial.print("Среднее значение rssi:");
           Serial.println(averageRssi);
                     
-          if (counter>=SNUM){
+          if (counter>=SNUM){ //тут можно добавить счетчик на зону для красного цвета
             inZone = true;   
-            Serial.println("In zone");
           }   
           else if(decounter>=SNUM){
-               inZone = false;   
-               Serial.println("Out zone");
+            inZone = false;   
           }
           break;
         }

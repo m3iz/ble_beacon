@@ -3,7 +3,6 @@
 #include <Arduino.h> 
 
 extern bool inZone;
-extern int slevel;
 
 extern int mval;
 

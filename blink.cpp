@@ -1,6 +1,8 @@
 #include "blink.h"
 #include <math.h>
 
+
+//красную зону можно сделать по кол-ву отчестов так же/ можно сделать проверку на 15 средних значений, лучше меньше, моргает редко
 int LED1 = 22;
 int LED2 = 21;  //21
 bool led=false;
@@ -14,7 +16,7 @@ void BLINK_init() {
 void helloBlink(){
   for(int i=0;i<15;i++){
   digitalWrite(LED2, HIGH);
-  delay(50);  //x^2 как вариант
+  delay(50);
   digitalWrite(LED2, LOW);
   delay(50);
   }
@@ -22,16 +24,15 @@ void helloBlink(){
 
 void BLINK_red() {
   if (inZone) {
+      if(mval<60)led=true;
+  else led = false;
     if(!led){
       digitalWrite(LED2, HIGH);
     }else{
       digitalWrite(LED1, HIGH);
     }
   }
-
-  if(mval<65)led=true;
-  else led = false;
-  delay(150);  //x^2 как вариант
+  delay(150);
   digitalWrite(LED2, LOW);
   digitalWrite(LED1, LOW);
   delay(150);
