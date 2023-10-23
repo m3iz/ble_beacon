@@ -8,7 +8,6 @@
 #include <map>
 #include "blink.h"
 
-
 uint64_t chipId = 0;
 uint8_t last3Bytes[3];
 //bugs: когда выключается соовсем устройство rssi остается в списке маленьким. счетчик обнуления всей мапы как вариант. 
@@ -16,7 +15,7 @@ std::map<String, std::vector<int>> rssiData;
 std::map<String, int> lastData;
 
 #define MODE 2
-
+#define RLEVEL 3
 #define SNUM 10
 
 BLEServer* pServer;
@@ -26,10 +25,13 @@ int mval=0;
 int rcounter = 0;
 bool inZone = false;
 bool deviceFound = false;
+bool inrow = false;
 
 int counter = 0;
 int decounter = 0;
 int dcounter = 0;
+int ledcounter = 0;
+int leddecounter = 0;
 
 //UUID для сервиса и характеристики
 #define SERVICE_UUID        "0000180f-0000-1000-8000-00805f9b34fb"
@@ -38,6 +40,7 @@ int dcounter = 0;
 const int numBeacons = 10;
 
 const int minRSSI = 75; //-85
+const int minrRSSI = 60;
 
 BLEScan* pBLEScan;
 
@@ -74,6 +77,7 @@ void blinkTask(void *pvParameters) {
 }
 void scanTask(void *pvParameters) {
   for (;;) {
+    inrow = false;
     deviceFound = false;
     BLEDevice::init("BLE_Scanner");
     pBLEScan = BLEDevice::getScan();
@@ -116,15 +120,19 @@ void scanTask(void *pvParameters) {
             if(value<=minRSSI)counter++;
             else decounter++;
           }
-          Serial.print("Counter "); Serial.println(counter);
-          Serial.print("Decounter "); Serial.println(decounter);
+          if((rssiData[dMAC][9]<=minrRSSI)&&(rssiData[dMAC][8]<=minrRSSI)&&(rssiData[dMAC][7]<=minrRSSI)){
+            inrow = true;
+            Serial.println("INROW");
+            }
+          //Serial.print("Counter "); Serial.println(counter);
+          //Serial.print("Decounter "); Serial.println(decounter);
           int averageRssi = sum / rssiData[dMAC].size();
           lastData[dMAC] = averageRssi;
 
           Serial.print("Среднее значение rssi:");
           Serial.println(averageRssi);
                     
-          if (counter>=SNUM){ //тут можно добавить счетчик на зону для красного цвета
+          if (counter>=SNUM){ 
             inZone = true;   
           }   
           else if(decounter>=SNUM){
@@ -143,6 +151,16 @@ void scanTask(void *pvParameters) {
     }else rcounter = 0;
     if(rcounter>35)lastData.clear();
     mval=tval;
+    if(mval<=minrRSSI){
+      ledcounter++;
+      leddecounter = 0;
+    }
+    else {
+      leddecounter++;
+      ledcounter = 0;
+    }
+    if((ledcounter>=RLEVEL)&&(inrow))led=true;
+    else if (leddecounter>=RLEVEL+3) led = false; //проверить отключение красного
 
   if(!deviceFound) {
     if(inZone)dcounter++;

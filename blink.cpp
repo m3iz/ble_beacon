@@ -24,8 +24,6 @@ void helloBlink(){
 
 void BLINK_red() {
   if (inZone) {
-      if(mval<60)led=true;
-  else led = false;
     if(!led){
       digitalWrite(LED2, HIGH);
     }else{
