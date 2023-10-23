@@ -5,33 +5,42 @@
 #include <BLE2902.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <map>
 #include "blink.h"
 
-//tasks сделать уникальный мак адресс fix + serial
-#define MODE 2
+uint64_t chipId = 0;
+uint8_t last3Bytes[3];
+//bugs: когда выключается соовсем устройство rssi остается в списке маленьким. счетчик обнуления всей мапы как вариант. 
+std::map<String, std::vector<int>> rssiData;
+std::map<String, int> lastData;
 
-#define SNUM 15
+#define MODE 2
+#define RLEVEL 3
+#define SNUM 10
 
 BLEServer* pServer;
 BLECharacteristic* pCharacteristic;
 
-int sval[SNUM];
 int mval=0;
-int it=0;
-
+int rcounter = 0;
 bool inZone = false;
-int slevel = 1;
 bool deviceFound = false;
+bool inrow = false;
+
+int counter = 0;
+int decounter = 0;
+int dcounter = 0;
+int ledcounter = 0;
+int leddecounter = 0;
+
 //UUID для сервиса и характеристики
 #define SERVICE_UUID        "0000180f-0000-1000-8000-00805f9b34fb"
 #define CHARACTERISTIC_UUID "00002a19-0000-1000-8000-00805f9b34fb"
 
 const int numBeacons = 10;
 
-int counter = 0;
-int decounter = 0;
-
-const int minRSSI = -85; //-85
+const int minRSSI = 75; //-85
+const int minrRSSI = 60;
 
 BLEScan* pBLEScan;
 
@@ -48,16 +57,18 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 
     // Проверяем, сравниваем с "10:00:00"
     if (firstThreeOctets.equals("10:00:00")) {
-      Serial.println("Device with MAC address starting with 10:00:00 found!");
       pBLEScan-> stop();
     }
     }
-
-      //Serial.print("BLE МАК адрес: ");
-      //Serial.println(advertisedDevice.getAddress().toString().c_str());
-     
-   // }
 };
+
+int midval(int *arr, int len){
+  int result = 0;
+  for(int i=0;i<len;i++){
+    result+=arr[i];
+  }
+  return result/len;
+}
 
 void blinkTask(void *pvParameters) {
   while(1){
@@ -66,66 +77,100 @@ void blinkTask(void *pvParameters) {
 }
 void scanTask(void *pvParameters) {
   for (;;) {
-    Serial.print("Scanning...\n");
+    inrow = false;
     deviceFound = false;
     BLEDevice::init("BLE_Scanner");
     pBLEScan = BLEDevice::getScan();
     pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
     pBLEScan->setActiveScan(true);
     BLEScanResults foundDevices = pBLEScan->start(1);  
-    int count = foundDevices.getCount();    
+    int count = foundDevices.getCount();  
+    int tval=100;  
     for (int j = 0; j < count; j++) 
-    {
+    { 
       BLEAdvertisedDevice d = foundDevices.getDevice(j);
       String dMAC = d.getAddress().toString().c_str();      
       String firstThreeOctets = dMAC.substring(0, 8);
       // Проверяем, сравниваем с "10:00:00"
       if (firstThreeOctets.equals("10:00:00")) {          
-          Serial.print("Найден MAC: ");
+          //Serial.print("Найден MAC: ");
           deviceFound = true;
-          Serial.println(dMAC);
-          Serial.print("RSSI: ");
-          Serial.println(d.getRSSI());
-          sval[it]=abs(d.getRSSI());
-          it++;
-          if(it==SNUM)it=0;
-          int temp=0;
-          for(int i=0;i<SNUM;i++){
-            temp+=sval[i];
-            Serial.print("i: "); Serial.print(i); Serial.print(" ");
-            Serial.println(sval[i]);
+          //Serial.println(dMAC);
+          //Serial.print("RSSI: "); 
+          //Serial.println(d.getRSSI());
+
+          if (rssiData.find(dMAC) == rssiData.end()) {
+          // Если записи не существует, создаем новую
+          rssiData[dMAC] = std::vector<int>();
           }
-          mval=temp/SNUM;
-          
-          if ((d.getRSSI() > minRSSI) && (counter >= SNUM))
-          {
-            inZone = true;
-            decounter = 0;
-            slevel = abs(d.getRSSI());
-            
+          // Добавляем текущее значение RSSI в массив для данного MAC-адреса
+          rssiData[dMAC].push_back(abs(d.getRSSI()));
+
+          // Ограничиваем размер массива до 15
+          if (rssiData[dMAC].size() > SNUM) {
+            rssiData[dMAC].erase(rssiData[dMAC].begin());
           }
-          else if(d.getRSSI() < minRSSI){
-            decounter++;
-            if(decounter>=SNUM-10){
-               inZone = false;
-               counter = 0;
+
+          // Вычисление среднего значения RSSI
+          int sum = 0;
+          counter = 0;
+          decounter = 0;
+          for (int value : rssiData[dMAC]) {
+            sum += value;
+            if(value<=minRSSI)counter++;
+            else decounter++;
+          }
+          if((rssiData[dMAC][9]<=minrRSSI)&&(rssiData[dMAC][8]<=minrRSSI)&&(rssiData[dMAC][7]<=minrRSSI)){
+            inrow = true;
+            Serial.println("INROW");
             }
+          //Serial.print("Counter "); Serial.println(counter);
+          //Serial.print("Decounter "); Serial.println(decounter);
+          int averageRssi = sum / rssiData[dMAC].size();
+          lastData[dMAC] = averageRssi;
+
+          Serial.print("Среднее значение rssi:");
+          Serial.println(averageRssi);
+                    
+          if (counter>=SNUM){ 
+            inZone = true;   
+          }   
+          else if(decounter>=SNUM){
+            inZone = false;   
           }
-                
           break;
         }
     }
-  
-  if(!deviceFound) {
-    counter = 0;
-    if(inZone)decounter++;
-    if(decounter>=SNUM){
-      inZone = false;
-      
+    for (const auto& pair : lastData) {
+        if (pair.second < tval) {
+            tval = pair.second;
+        }
     }
-  }
-  else {
-    counter++;
+    if(tval == mval){
+      rcounter++;
+    }else rcounter = 0;
+    if(rcounter>35)lastData.clear();
+    mval=tval;
+    if(mval<=minrRSSI){
+      ledcounter++;
+      leddecounter = 0;
+    }
+    else {
+      leddecounter++;
+      ledcounter = 0;
+    }
+    if((ledcounter>=RLEVEL)&&(inrow))led=true;
+    else if (leddecounter>=RLEVEL+3) led = false; //проверить отключение красного
+
+  if(!deviceFound) {
+    if(inZone)dcounter++;
+    if(dcounter>=SNUM-10){
+      inZone = false;
+      dcounter = 0;
+      mval = 100;
+      rssiData.clear();
+      lastData.clear();
+    }
   }
   pBLEScan -> clearResults();
   
@@ -141,19 +186,20 @@ void setup() {
   helloBlink();
   // Инициализация BLE сервера
   
-  uint64_t chipId = ESP.getEfuseMac();
+  chipId = ESP.getEfuseMac();
 
-  // Преобразовать последние 3 байта серийного номера в массив uint8_t
-  uint8_t last3Bytes[3];
-  last3Bytes[0] = (chipId >> 16) & 0xFF;
-  last3Bytes[1] = (chipId >> 8) & 0xFF;
-  last3Bytes[2] = chipId & 0xFF;
+  // Преобразовать первые 3 байта серийного номера в массив uint8_t
+
+  last3Bytes[0] = (chipId >> 24) & 0xFF;
+  last3Bytes[1] = (chipId >> 32) & 0xFF;
+  last3Bytes[2] = (chipId >> 40) & 0xFF;
 
   // Создать MAC-адрес с первыми тремя октетами "10:00:00" и последними тремя октетами из last3Bytes
   uint8_t macAddress[] = {0x10, 0x00, 0x00, last3Bytes[0], last3Bytes[1], last3Bytes[2]};
   //uint8_t newMACAddress[] = {0x10, 0x00, 0x00, 0x00, 0x01, 0x0a};
   esp_base_mac_addr_set(macAddress);
-  BLEDevice::init("Ble_device");
+ 
+  BLEDevice::init("Ble_device2");
  // BLEDevice::setPower(ESP_PWR_LVL_P7); //ESP_PWR_LVL_P7
   pServer = BLEDevice::createServer();
   BLEService *pService = pServer->createService(SERVICE_UUID);

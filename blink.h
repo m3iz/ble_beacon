@@ -3,8 +3,7 @@
 #include <Arduino.h> 
 
 extern bool inZone;
-extern int slevel;
-
+extern bool led;
 extern int mval;
 
 void BLINK_init(void); 
