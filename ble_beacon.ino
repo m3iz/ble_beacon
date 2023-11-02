@@ -6,11 +6,12 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <map>
+#include "esp_task_wdt.h"
 #include "blink.h"
 
 uint64_t chipId = 0;
 uint8_t last3Bytes[3];
-//bugs: когда выключается соовсем устройство rssi остается в списке маленьким. счетчик обнуления всей мапы как вариант. 
+ 
 std::map<String, std::vector<int>> rssiData;
 std::map<String, int> lastData;
 
@@ -77,6 +78,7 @@ void blinkTask(void *pvParameters) {
 }
 void scanTask(void *pvParameters) {
   for (;;) {
+    esp_task_wdt_reset();
     inrow = false;
     deviceFound = false;
     BLEDevice::init("BLE_Scanner");
@@ -181,7 +183,7 @@ void scanTask(void *pvParameters) {
 void setup() {
   Serial.begin(115200);
   
-  
+  esp_task_wdt_init(5, true);
   BLINK_init();
   helloBlink();
   // Инициализация BLE сервера
