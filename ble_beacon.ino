@@ -8,6 +8,17 @@
 #include <map>
 #include "esp_task_wdt.h"
 #include "blink.h"
+#include <WiFi.h>
+#include <ESPmDNS.h>
+#include <WiFiUdp.h>
+#include <ArduinoOTA.h>
+
+const char* ssid = "define";
+const char* password = "11223344";
+
+unsigned long previousMillis = 0;
+const long interval = 1000;  
+int ledState = LOW;
 
 uint64_t chipId = 0;
 uint8_t last3Bytes[3];
@@ -40,8 +51,8 @@ int leddecounter = 0;
 
 const int numBeacons = 10;
 
-const int minRSSI = 75; //-85
-const int minrRSSI = 60;
+const int minRSSI = 60; //-85
+const int minrRSSI = 40;
 
 BLEScan* pBLEScan;
 
@@ -55,9 +66,12 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 
     // Извлекаем только первые 8 символов (первые 3 октета)
     String firstThreeOctets = macAddress.substring(0, 8);
-
+    if(macAddress.equals("10:00:00:00:00:00")){
+      Serial.println("Skipped");
+      pBLEScan->stop();
+    }
     // Проверяем, сравниваем с "10:00:00"
-    if (firstThreeOctets.equals("10:00:00")) {
+    if (firstThreeOctets.equals("10:00:00") && rssiData.size()==1) {
       pBLEScan-> stop();
     }
     }
@@ -76,7 +90,7 @@ void blinkTask(void *pvParameters) {
     BLINK_red();
   }
 }
-void scanTask(void *pvParameters) {
+void scanTask(void *pvParameters) { //inrow обновляется чаще, чем репитер 
   for (;;) {
     esp_task_wdt_reset();
     inrow = false;
@@ -89,7 +103,7 @@ void scanTask(void *pvParameters) {
     int count = foundDevices.getCount();  
     int tval=100;  
     for (int j = 0; j < count; j++) 
-    { 
+    {  
       BLEAdvertisedDevice d = foundDevices.getDevice(j);
       String dMAC = d.getAddress().toString().c_str();      
       String firstThreeOctets = dMAC.substring(0, 8);
@@ -132,7 +146,9 @@ void scanTask(void *pvParameters) {
           lastData[dMAC] = averageRssi;
 
           Serial.print("Среднее значение rssi:");
-          Serial.println(averageRssi);
+          Serial.print(averageRssi);
+          Serial.print(" dMac: ");
+          Serial.println(dMAC);
                     
           if (counter>=SNUM){ 
             inZone = true;   
@@ -151,8 +167,14 @@ void scanTask(void *pvParameters) {
     if(tval == mval){
       rcounter++;
     }else rcounter = 0;
-    if(rcounter>35)lastData.clear();
+    if(rcounter>35){
+      lastData.clear();
+      rssiData.clear();
+      mval = 100;
+    }
     mval=tval;
+    Serial.print("MVAL: ");
+    Serial.println(mval);
     if(mval<=minrRSSI){
       ledcounter++;
       leddecounter = 0;
@@ -182,7 +204,50 @@ void scanTask(void *pvParameters) {
 
 void setup() {
   Serial.begin(115200);
-  
+  pinMode(led, OUTPUT);
+                                                                                                                                                	 
+
+  Serial.println("Booting");
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+  while (WiFi.waitForConnectResult() != WL_CONNECTED) {
+	Serial.println("Connection Failed! Rebooting...");
+	delay(5000);
+	ESP.restart();
+  }
+                
+                
+  ArduinoOTA
+	.onStart([]() {
+  	String type;
+  	if (ArduinoOTA.getCommand() == U_FLASH)
+    	type = "sketch";
+  	else // U_SPIFFS
+    	type = "filesystem";
+
+  	// NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+  	Serial.println("Start updating " + type);
+	})
+	.onEnd([]() {
+  	Serial.println("\nEnd");
+	})
+	.onProgress([](unsigned int progress, unsigned int total) {
+  	Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+	})
+	.onError([](ota_error_t error) {
+  	Serial.printf("Error[%u]: ", error);
+  	if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+  	else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+  	else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+  	else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+  	else if (error == OTA_END_ERROR) Serial.println("End Failed");
+	});
+                
+  ArduinoOTA.begin();
+                
+  Serial.println("Ready");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
   esp_task_wdt_init(5, true);
   BLINK_init();
   helloBlink();
@@ -223,5 +288,13 @@ void setup() {
 }
 
 void loop() {
+  ArduinoOTA.handle();
+                
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousMillis >= interval) {
+   previousMillis = currentMillis;
+   ledState = not(ledState);
+   digitalWrite(led,  ledState);
+  }
   // Дополнительная логика BLE сервера может быть добавлена здесь
 }
