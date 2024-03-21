@@ -12,11 +12,12 @@ uint64_t chipId = 0;
 uint8_t last3Bytes[3];
 //bugs: когда выключается соовсем устройство rssi остается в списке маленьким. счетчик обнуления всей мапы как вариант. 
 std::map<String, std::vector<int>> rssiData;
-std::map<String, int> lastData;
+std::map<String, int[3]> lastData;//[1] - inRow, [2] - inZone
 
 #define MODE 2
 #define RLEVEL 3
 #define SNUM 10
+#define REPCOR 30
 
 BLEServer* pServer;
 BLECharacteristic* pCharacteristic;
@@ -104,6 +105,9 @@ void scanTask(void *pvParameters) {
           rssiData[dMAC] = std::vector<int>();
           }
           // Добавляем текущее значение RSSI в массив для данного MAC-адреса
+          if(dMAC.equals("10:00:00:00:00:00")){
+              rssiData[dMAC].push_back(abs(d.getRSSI())-REPCOR);
+          }else
           rssiData[dMAC].push_back(abs(d.getRSSI()));
 
           // Ограничиваем размер массива до 15
@@ -121,29 +125,35 @@ void scanTask(void *pvParameters) {
             else decounter++;
           }
           if((rssiData[dMAC][9]<=minrRSSI)&&(rssiData[dMAC][8]<=minrRSSI)&&(rssiData[dMAC][7]<=minrRSSI)){
-            inrow = true;
-            Serial.println("INROW");
+            
+            lastData[dMAC][1]=1;
             }
+            else lastData[dMAC][1] = 0;
           //Serial.print("Counter "); Serial.println(counter);
           //Serial.print("Decounter "); Serial.println(decounter);
           int averageRssi = sum / rssiData[dMAC].size();
-          lastData[dMAC] = averageRssi;
+          lastData[dMAC][0] = averageRssi;
 
-          Serial.print("Среднее значение rssi:");
-          Serial.println(averageRssi);
+          //Serial.print("Среднее значение rssi:");
+          //Serial.println(averageRssi);
                     
           if (counter>=SNUM){ 
-            inZone = true;   
+            lastData[dMAC][2] = 1;   
           }   
           else if(decounter>=SNUM){
-            inZone = false;   
+            lastData[dMAC][0] = 0;   
           }
           break;
         }
     }
+
     for (const auto& pair : lastData) {
-        if (pair.second < tval) {
-            tval = pair.second;
+      if(pair.second[1]==1) inrow = true;
+      if(pair.second[2]==1) inZone = true;
+    }
+    for (const auto& pair : lastData) {
+        if (pair.second[0] < tval) {
+            tval = pair.second[0];
         }
     }
     if(tval == mval){
