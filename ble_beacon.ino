@@ -141,7 +141,7 @@ void scanTask(void *pvParameters) {
             lastData[dMAC][2] = 1;   
           }   
           else if(decounter>=SNUM){
-            lastData[dMAC][0] = 0;   
+            lastData[dMAC][2] = 0;   
           }
           break;
         }
@@ -150,12 +150,11 @@ void scanTask(void *pvParameters) {
     for (const auto& pair : lastData) {
       if(pair.second[1]==1) inrow = true;
       if(pair.second[2]==1) inZone = true;
-    }
-    for (const auto& pair : lastData) {
-        if (pair.second[0] < tval) {
+      if (pair.second[0] < tval) {
             tval = pair.second[0];
-        }
+      }
     }
+    
     if(tval == mval){
       rcounter++;
     }else rcounter = 0;
