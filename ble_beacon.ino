@@ -17,7 +17,7 @@ std::map<String, int[3]> lastData;//[1] - inRow, [2] - inZone
 #define MODE 2
 #define RLEVEL 3
 #define SNUM 10
-#define REPCOR 30
+#define REPCOR 15
 
 BLEServer* pServer;
 BLECharacteristic* pCharacteristic;
@@ -98,7 +98,7 @@ void scanTask(void *pvParameters) {
           deviceFound = true;
           //Serial.println(dMAC);
           //Serial.print("RSSI: "); 
-          //Serial.println(d.getRSSI());
+          Serial.println(d.getRSSI());
 
           if (rssiData.find(dMAC) == rssiData.end()) {
           // Если записи не существует, создаем новую
