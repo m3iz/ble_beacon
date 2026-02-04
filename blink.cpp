@@ -23,6 +23,10 @@ void helloBlink(){
 }
 
 void BLINK_red() {
+  if(radio_state){
+     digitalWrite(LED2, HIGH);
+    }
+    else {
   if (inZone) {
     if(!led){
       digitalWrite(LED2, HIGH);
@@ -30,8 +34,10 @@ void BLINK_red() {
       digitalWrite(LED1, HIGH);
     }
   }
+  }
   delay(150);
   digitalWrite(LED2, LOW);
   digitalWrite(LED1, LOW);
   delay(150);
+
 }

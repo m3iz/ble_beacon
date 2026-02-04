@@ -12,13 +12,15 @@
 #include "esp_mac.h"
 
 // ====== Конфигурация ======
+HardwareSerial SerialSTM(2);
+
 #define MODE 2
 #define RLEVEL 3
 #define SNUM 10      // размер буфера RSSI для каждого MAC
 #define REPCOR 15    // коррекция RSSI для специального MAC
 #define SERVICE_UUID        "0000180f-0000-1000-8000-00805f9b34fb"
 #define CHARACTERISTIC_UUID "00002a19-0000-1000-8000-00805f9b34fb"
-
+#define RX_BUF_SIZE 256
 // Пороговые значения (в абсолютных значениях: abs(RSSI))
 const int minRSSI = 75;   // соответствует -75 dBm -> использовать abs()
 const int minrRSSI = 60;  // более строгий порог
@@ -40,7 +42,7 @@ int rcounter = 0;
 bool inZone = false;
 bool deviceFound = false;
 bool inrow = false;
-
+int radio_state = 0;
 int counter = 0;
 int decounter = 0;
 int dcounter = 0;
@@ -213,10 +215,55 @@ void scanTask(void *pvParameters) {
     vTaskDelay(pdMS_TO_TICKS(10));
   } // while
 }
+// ====== НОВАЯ ЗАДАЧА — чтение UART от STM32 ======
+void uartReadTask(void *pvParameters)
+{
+    static char rxbuf[RX_BUF_SIZE];
+    static uint16_t len = 0;
 
+    while (true)
+    {
+        while (SerialSTM.available())
+        {
+            char c = SerialSTM.read();
+
+            if (len < RX_BUF_SIZE - 1)
+                rxbuf[len++] = c;
+
+            rxbuf[len] = 0;
+
+            if (strstr(rxbuf, "RADIO NEAR"))
+            {
+                radio_state = 1;
+                Serial.println("radio_state = 1;");
+                len = 0;
+                memset(rxbuf, 0, sizeof(rxbuf));
+            }
+            else if (strstr(rxbuf, "RADIO LOST") ||
+                     strstr(rxbuf, "RADIO FAR"))
+            {
+                radio_state = 0;
+                Serial.println("RADIO = LOST/FAR");
+                len = 0;
+                memset(rxbuf, 0, sizeof(rxbuf));
+            }
+
+            // защита от мусора
+            if (len >= RX_BUF_SIZE - 2)
+            {
+                len = 0;
+                memset(rxbuf, 0, sizeof(rxbuf));
+            }
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(5));
+    }
+}
 // ====== setup() — инициализация BLE и задач ======
 void setup() {
-  Serial.begin(115200);
+  //Serial.begin(115200);
+    SerialSTM.begin(115200, SERIAL_8N1, 18, 17);
+  Serial.println("UART2 (SerialSTM) запущен: RX=GPIO18, TX=GPIO17");
   BLINK_init();
   helloBlink();
 
@@ -244,7 +291,7 @@ void setup() {
   pServer->getAdvertising()->addServiceUUID(pService->getUUID());
   pServer->getAdvertising()->start();
 
-  // Настройка сканера — делаем это один раз
+  // Настройка сканера — делаем это один разну я
   pBLEScan = BLEDevice::getScan();
   // Настроим параметры: interval/window — помогают стабилизировать сканирование
   // Значения в миллисекундах; метод принимает числа в тиках/условностях библиотеки — стандартные примеры используют такие значения.
@@ -255,9 +302,11 @@ void setup() {
   // Создадим задачи
   xTaskCreate(scanTask, "ScanTask", 8192, NULL, 1, NULL);
   xTaskCreate(blinkTask, "BLINK_red", 2048, NULL, 2, NULL);
+  xTaskCreate(uartReadTask, "UartRead", 3072, NULL, 1, NULL);
 }
 
 void loop() {
+  Serial.println("v1.0.0");
   // Не используем loop для BLE — вся логика в задачах
-  vTaskDelay(pdMS_TO_TICKS(1000));
+  vTaskDelay(pdMS_TO_TICKS(10000));
 }
