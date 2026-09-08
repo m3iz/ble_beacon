@@ -5,7 +5,7 @@
 extern bool inZone;
 extern bool led;
 extern int mval;
-
+extern int radio_state;
 void BLINK_init(void); 
 void helloBlink(void);
 void BLINK_green(void);  

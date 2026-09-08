@@ -3,7 +3,7 @@
 
 
 //красную зону можно сделать по кол-ву отчестов так же/ можно сделать проверку на 15 средних значений, лучше меньше, моргает редко
-int LED1 = 2; //22 red
+int LED1 = 22; //22 red
 int LED2 = 21;  //21
 bool led=false;
 int dvalue = 0;
@@ -23,12 +23,20 @@ void helloBlink(){
 }
 
 void BLINK_red() {
+  if(radio_state==1){
+    digitalWrite(LED1, HIGH);
+  }
+  else if(radio_state==2){
+    digitalWrite(LED2, HIGH);
+  }
+  else{
   if (inZone) {
     if(!led){
       digitalWrite(LED2, HIGH);
     }else{
       digitalWrite(LED1, HIGH);
     }
+  }
   }
   delay(150);
   digitalWrite(LED2, LOW);

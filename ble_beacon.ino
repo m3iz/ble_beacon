@@ -8,6 +8,13 @@
 #include <map>
 #include "blink.h"
 
+// ===== ДОБАВЛЕНО ДЛЯ UART =====
+#include <HardwareSerial.h>
+HardwareSerial SerialSTM(2);          // UART2 для связи с STM32
+#define RX_BUF_SIZE 256
+int radio_state = 0;                  // переменная, меняемая по UART
+// ==============================
+
 uint64_t chipId = 0;
 uint8_t last3Bytes[3];
 //bugs: когда выключается соовсем устройство rssi остается в списке маленьким. счетчик обнуления всей мапы как вариант. 
@@ -76,6 +83,7 @@ void blinkTask(void *pvParameters) {
     BLINK_red();
   }
 }
+
 void scanTask(void *pvParameters) {
   for (;;) {
     inrow = false;
@@ -146,7 +154,7 @@ void scanTask(void *pvParameters) {
           break;
         }
     }
-
+    inZone = false;
     for (const auto& pair : lastData) {
       if(pair.second[1]==1) inrow = true;
       if(pair.second[2]==1) inZone = true;
@@ -187,10 +195,67 @@ void scanTask(void *pvParameters) {
   }
 }
 
+// ===== ДОБАВЛЕНА ЗАДАЧА ЧТЕНИЯ UART =====
+void uartReadTask(void *pvParameters)
+{
+    static char rxbuf[RX_BUF_SIZE];
+    static uint16_t len = 0;
+
+    while (true)
+    {
+        while (SerialSTM.available())
+        {
+            char c = SerialSTM.read();
+
+            if (len < RX_BUF_SIZE - 1)
+                rxbuf[len++] = c;
+
+            rxbuf[len] = 0;
+
+            if (strstr(rxbuf, "RADIO NEAR"))
+            {
+                radio_state = 1;
+                Serial.println("radio_state = 2;");
+                len = 0;
+                memset(rxbuf, 0, sizeof(rxbuf));
+            }
+            if (strstr(rxbuf, "RADIO CLOSE"))
+            {
+              Serial.println("radio_state = 1;");
+              radio_state = 2;
+              len = 0;
+              memset(rxbuf, 0, sizeof(rxbuf));
+            }
+            else if (strstr(rxbuf, "RADIO LOST") ||
+                     strstr(rxbuf, "RADIO FAR"))
+            {
+                radio_state = 0;
+               //Serial.println("RADIO = LOST/FAR");
+                len = 0;
+                memset(rxbuf, 0, sizeof(rxbuf));
+            }
+
+            // защита от переполнения
+            if (len >= RX_BUF_SIZE - 2)
+            {
+                len = 0;
+                memset(rxbuf, 0, sizeof(rxbuf));
+            }
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(5));
+    }
+}
+// =======================================
+
 void setup() {
   Serial.begin(115200);
   
-  
+  // ===== ДОБАВЛЕНА ИНИЦИАЛИЗАЦИЯ UART2 =====
+  SerialSTM.begin(115200, SERIAL_8N1, 18, 17);
+  Serial.println("UART2 (SerialSTM) запущен: RX=GPIO18, TX=GPIO17");
+  // ========================================
+
   BLINK_init();
   helloBlink();
   // Инициализация BLE сервера
@@ -227,8 +292,13 @@ void setup() {
   // Запуск задачи для сканирования и индикации
   xTaskCreate(scanTask, "ScanTask", 4096, NULL, 1, NULL);
   xTaskCreate(blinkTask, "BLINK_red", 4096, NULL, 2, NULL);
+  
+  // ===== ДОБАВЛЕН ЗАПУСК ЗАДАЧИ UART =====
+  xTaskCreate(uartReadTask, "UartRead", 3072, NULL, 1, NULL);
+  // =======================================
 }
 
 void loop() {
   // Дополнительная логика BLE сервера может быть добавлена здесь
+  // Оставлено пустым, как в исходной прошивке
 }
